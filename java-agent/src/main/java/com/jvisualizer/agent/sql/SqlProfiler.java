@@ -14,12 +14,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * SQL Profiler - JDBC Instrumentation 기반
- *
- * ASM을 사용하여 PreparedStatement.execute*() 메서드를 바이트코드 수준에서 인터셉트하여
- * SQL 실행 시간, 호출 빈도, 호출 스택을 수집합니다.
- */
 public class SqlProfiler {
 
     private static final Logger log = LoggerFactory.getLogger(SqlProfiler.class);
@@ -28,12 +22,10 @@ public class SqlProfiler {
     private final Instrumentation instrumentation;
     private final DataSender dataSender;
 
-    // 이벤트 버퍼 (스레드 안전)
     private static final ConcurrentLinkedQueue<SqlEvent> eventBuffer = new ConcurrentLinkedQueue<>();
     private static final AtomicLong totalSqlCount = new AtomicLong(0);
     private static final AtomicLong slowSqlCount = new AtomicLong(0);
 
-    // 정적 참조 (바이트코드에서 접근)
     private static volatile SqlProfiler instance;
 
     public SqlProfiler(AgentConfig config, Instrumentation instrumentation, DataSender dataSender) {
@@ -53,9 +45,6 @@ public class SqlProfiler {
         }
     }
 
-    /**
-     * SQL 실행 완료 시 바이트코드에서 호출되는 정적 메서드
-     */
     public static void onSqlExecuted(String sql, long durationMs, String callerInfo) {
         if (instance == null) return;
 
@@ -79,9 +68,6 @@ public class SqlProfiler {
         instance.dataSender.sendSqlEvent(event);
     }
 
-    /**
-     * 누적 SQL 통계 반환
-     */
     public SqlStats getStats() {
         List<SqlEvent> events = new ArrayList<>();
         SqlEvent event;
@@ -91,15 +77,14 @@ public class SqlProfiler {
         return new SqlStats(totalSqlCount.get(), slowSqlCount.get(), events);
     }
 
-    // ---- ASM ClassFileTransformer ----
-
     private static class JdbcTransformer implements ClassFileTransformer {
 
+        // H2는 ASM 바이트코드 변환 시 VerifyError 발생 (내부 클래스 로드 불가)
+        // H2 SQL 프로파일링은 SqlProfilingAspect(AOP)가 처리하므로 여기서 제외
         private static final Set<String> TARGET_CLASSES = Set.of(
                 "com/mysql/cj/jdbc/PreparedStatement",
                 "org/postgresql/jdbc/PgPreparedStatement",
-                "oracle/jdbc/driver/OraclePreparedStatement",
-                "org/h2/jdbc/JdbcPreparedStatement"
+                "oracle/jdbc/driver/OraclePreparedStatement"
         );
 
         @Override
@@ -114,7 +99,7 @@ public class SqlProfiler {
 
             try {
                 ClassReader reader = new ClassReader(classfileBuffer);
-                ClassWriter writer = new ClassWriter(reader, ClassWriter.COMPUTE_FRAMES);
+                ClassWriter writer = new ClassWriter(reader, ClassWriter.COMPUTE_MAXS);
                 ClassVisitor visitor = new JdbcClassVisitor(writer);
                 reader.accept(visitor, ClassReader.EXPAND_FRAMES);
                 log.info("Instrumented JDBC class: {}", className);
@@ -135,9 +120,8 @@ public class SqlProfiler {
         public MethodVisitor visitMethod(int access, String name, String descriptor,
                                          String signature, String[] exceptions) {
             MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
-            if (name.startsWith("execute") &&
-                    (name.equals("execute") || name.equals("executeQuery") ||
-                     name.equals("executeUpdate") || name.equals("executeBatch"))) {
+            if (name.equals("execute") || name.equals("executeQuery") ||
+                name.equals("executeUpdate") || name.equals("executeBatch")) {
                 return new SqlMethodAdvice(mv, access, name, descriptor);
             }
             return mv;
@@ -154,7 +138,6 @@ public class SqlProfiler {
         @Override
         protected void onMethodEnter() {
             startTimeVar = newLocal(Type.LONG_TYPE);
-            // long startTime = System.currentTimeMillis();
             mv.visitMethodInsn(INVOKESTATIC, "java/lang/System",
                     "currentTimeMillis", "()J", false);
             mv.visitVarInsn(LSTORE, startTimeVar);
@@ -164,13 +147,11 @@ public class SqlProfiler {
         protected void onMethodExit(int opcode) {
             if (opcode == ATHROW) return;
 
-            // long duration = System.currentTimeMillis() - startTime;
             mv.visitMethodInsn(INVOKESTATIC, "java/lang/System",
                     "currentTimeMillis", "()J", false);
             mv.visitVarInsn(LLOAD, startTimeVar);
             mv.visitInsn(LSUB);
 
-            // SqlProfiler.onSqlExecuted(this.toString(), duration, "")
             mv.visitVarInsn(LSTORE, startTimeVar + 2);
             mv.visitVarInsn(ALOAD, 0);
             mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Object",
@@ -184,8 +165,6 @@ public class SqlProfiler {
                     false);
         }
     }
-
-    // ---- Inner data classes ----
 
     public record SqlEvent(
             long timestamp,
