@@ -236,6 +236,3 @@ flutter run -d web-server --web-port=7777  # Web Browser
 
 ---
 
-## 📋 이슈 로그
-
-- [ISSUE-2026-03-19.md](./ISSUE-2026-03-19.md) — 초기 개발 세션 이슈 13건 + 신규 기능 4건
