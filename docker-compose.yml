@@ -1,0 +1,48 @@
+version: '3.9'
+
+services:
+  # ──────────────────────────────────────────────────────────────
+  # 1. J-Visualizer Backend
+  # ──────────────────────────────────────────────────────────────
+  j-visualizer-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: j-visualizer-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SERVER_PORT=8080
+    networks:
+      - profiler-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ──────────────────────────────────────────────────────────────
+  # 2. Example Spring Boot App (Agent 자동 주입)
+  # ──────────────────────────────────────────────────────────────
+  example-app:
+    build:
+      context: .
+      dockerfile: example-app/Dockerfile
+    container_name: j-visualizer-example
+    ports:
+      - "8090:8090"
+    environment:
+      - SERVER_PORT=8090
+      - JVISUALIZER_BACKEND_URL=http://j-visualizer-backend:8080
+      - JAVA_TOOL_OPTIONS=-javaagent:/app/agent.jar=server=http://j-visualizer-backend:8080,mode=sampling,interval=10,package=com.jvisualizer.example,flushInterval=5000
+    depends_on:
+      j-visualizer-backend:
+        condition: service_healthy
+    networks:
+      - profiler-network
+
+networks:
+  profiler-network:
+    driver: bridge

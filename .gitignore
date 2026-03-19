@@ -1,0 +1,39 @@
+# Java
+*.class
+*.log
+*.ctxt
+.mtj.tmp/
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+.gradle
+build/
+target/
+
+# Flutter
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+flutter_*.png
+ios/.generated/
+macos/.generated/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Other
+*.tmp
+*.bak

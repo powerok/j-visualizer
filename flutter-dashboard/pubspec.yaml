@@ -1,0 +1,37 @@
+name: j_visualizer_dashboard
+description: J-Visualizer Flutter Dashboard - Real-time JVM Profiling UI
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # HTTP & WebSocket
+  web_socket_channel: ^2.4.0
+  http: ^1.2.0
+
+  # 차트
+  fl_chart: ^0.67.0
+
+  # 상태관리
+  provider: ^6.1.2
+
+  # UI 컴포넌트
+  google_fonts: ^6.2.1
+  gap: ^3.0.1
+
+  # 유틸
+  intl: ^0.19.0
+  collection: ^1.18.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
