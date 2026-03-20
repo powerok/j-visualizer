@@ -75,6 +75,7 @@ j-visualizer/
 ├── flutter-dashboard/               # 📱 Flutter 대시보드
 │   └── lib/
 │       ├── screens/
+│       │   ├── api_test_tab.dart    # API Test
 │       │   ├── dashboard_tab.dart   # 실시간 차트
 │       │   ├── flame_graph_tab.dart # Flame Graph + 히스토리
 │       │   ├── call_tree_tab.dart   # Call Tree + 히스토리 + Highlight
