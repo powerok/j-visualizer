@@ -1,13 +1,18 @@
 // lib/screens/call_tree_tab.dart
+// Call Tree 탭: CPU 프로파일 데이터를 계층적 트리 형태로 표시하고 메서드별 샘플 비율 시각화
+
+// JSON 인코딩/디코딩 라이브러리
 import 'dart:convert';
 import 'package:flutter/material.dart';
+// HTTP 요청 패키지 (프로파일 히스토리 조회용)
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+// 날짜 포맷팅 패키지
 import 'package:intl/intl.dart';
 import '../providers/profiler_provider.dart';
 import '../models/profiler_models.dart';
-
-class CallTreeTab extends StatefulWidget {
+// Call Tree 탭 위젯 (StatefulWidget: 하이라이트, 히스토리 선택 상태 관리)
+  class CallTreeTab extends StatefulWidget {
   const CallTreeTab({super.key});
 
   @override
@@ -15,17 +20,23 @@ class CallTreeTab extends StatefulWidget {
 }
 
 class _CallTreeTabState extends State<CallTreeTab> {
+  // 강조 표시할 패키지 접두사 (사용자 지정 가능, 기본: 'com.jvisualizer')
   String _highlight = 'com.jvisualizer';
+  // 백엔드에서 불러온 CPU 프로파일 히스토리 목록
   List<Map<String, dynamic>> _history = [];
+  // 선택된 프로파일 ID (null이면 실시간 LIVE 데이터 표시)
   String? _selectedProfileId;
+  // 선택된 히스토리 프로파일의 루트 FlameNode
   FlameNode? _historicalRoot;
 
   @override
+  // 위젯 초기화 시 프로파일 히스토리 자동 로드
   void initState() {
     super.initState();
     _loadHistory();
   }
 
+  // 백엔드 /api/profile/history에서 프로파일 히스토리 목록 조회
   Future<void> _loadHistory() async {
     try {
       final url = context.read<ProfilerProvider>().serverUrl;
@@ -36,6 +47,7 @@ class _CallTreeTabState extends State<CallTreeTab> {
     } catch (_) {}
   }
 
+  // 특정 프로파일 ID를 선택하여 히스토리 데이터를 FlameNode 트리로 변환
   Future<void> _selectProfile(String id) async {
     try {
       final url = context.read<ProfilerProvider>().serverUrl;
@@ -58,12 +70,15 @@ class _CallTreeTabState extends State<CallTreeTab> {
 
   @override
   Widget build(BuildContext context) {
-    final liveRoot = context.watch<ProfilerProvider>().latestFlameNode;
-    final root = _selectedProfileId != null ? _historicalRoot : liveRoot;
+    // Provider에서 실시간 최신 FlameNode 조회
+  final liveRoot = context.watch<ProfilerProvider>().latestFlameNode;
+    // 선택 프로파일 ID 있으면 히스토리 사용, 없으면 실시간 데이터 사용
+  final root = _selectedProfileId != null ? _historicalRoot : liveRoot;
 
     return Column(
       children: [
-        // ── 툴바 ────────────────────────────────────────────────
+        // 상단 툴바: 히스토리 선택, 새로고침, 하이라이트 입력, 범례
+  // ── 툴바 ────────────────────────────────────────────────
         Container(
           color: Theme.of(context).cardColor,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -71,7 +86,8 @@ class _CallTreeTabState extends State<CallTreeTab> {
             Icon(Icons.account_tree, color: Colors.blueAccent, size: 16),
             SizedBox(width: 6),
 
-            // 히스토리 드롭다운
+            // 실시간 / 히스토리 프로파일 선택 드롭다운
+  // 히스토리 드롭다운
             _HistoryDropdown(
               history: _history,
               selectedId: _selectedProfileId,
@@ -104,7 +120,8 @@ class _CallTreeTabState extends State<CallTreeTab> {
                   hintText: 'com.jvisualizer',
                   hintStyle: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.24)),
                 ),
-                onSubmitted: (v) => setState(() => _highlight = v.trim()),
+                // 엔터 입력 시 하이라이트 텍스트 업데이트 (앞뒤 공백 제거)
+  onSubmitted: (v) => setState(() => _highlight = v.trim()),
               ),
             ),
             SizedBox(width: 10),
@@ -119,7 +136,8 @@ class _CallTreeTabState extends State<CallTreeTab> {
         ),
         Divider(height: 1),
 
-        // ── 트리 ─────────────────────────────────────────────────
+        // 트리 뷰 영역: 데이터 없으면 안내 메시지, 있으면 트리 렌더링
+  // ── 트리 ─────────────────────────────────────────────────
         Expanded(
           child: root == null
               ? Center(
@@ -146,7 +164,8 @@ class _CallTreeTabState extends State<CallTreeTab> {
 
 // ── 양방향 스크롤 래퍼 ─────────────────────────────────────────
 
-class _ScrollableTree extends StatefulWidget {
+// 수평·수직 양방향 스크롤을 지원하는 트리 래퍼 위젯
+  class _ScrollableTree extends StatefulWidget {
   final Widget child;
   const _ScrollableTree({required this.child});
 
@@ -155,7 +174,9 @@ class _ScrollableTree extends StatefulWidget {
 }
 
 class _ScrollableTreeState extends State<_ScrollableTree> {
+  // 수직 스크롤 컨트롤러
   final _verticalController = ScrollController();
+  // 수평 스크롤 컨트롤러
   final _horizontalController = ScrollController();
 
   @override
@@ -191,7 +212,8 @@ class _ScrollableTreeState extends State<_ScrollableTree> {
   }
 }
 
-class _HistoryDropdown extends StatelessWidget {
+// 프로파일 히스토리 선택 드롭다운 위젯
+  class _HistoryDropdown extends StatelessWidget {
   final List<Map<String, dynamic>> history;
   final String? selectedId;
   final ValueChanged<String?> onChanged;
@@ -244,7 +266,8 @@ class _HistoryDropdown extends StatelessWidget {
   ]);
 }
 
-class _Legend extends StatelessWidget {
+// 색상 범례 위젯 (Your code / Framework·JVM 구분)
+  class _Legend extends StatelessWidget {
   final Color color;
   final String label;
   const _Legend({required this.color, required this.label});
@@ -260,7 +283,8 @@ class _Legend extends StatelessWidget {
 
 // ── Call Tree Node ───────────────────────────────────────────────
 
-class _CallTreeNode extends StatefulWidget {
+// 개별 호출 트리 노드 위젯 (접힘/펼침 상태 관리)
+  class _CallTreeNode extends StatefulWidget {
   final FlameNode node;
   final int depth, totalSamples;
   final String highlight;
@@ -275,12 +299,14 @@ class _CallTreeNode extends StatefulWidget {
 }
 
 class _CallTreeNodeState extends State<_CallTreeNode> {
+  // 현재 노드의 자식 펼침 여부
   late bool _expanded;
 
   @override
   void initState() {
     super.initState();
-    // 앱 코드이거나 root이면 자동 펼침, 나머지는 닫힘
+    // 앱 코드(하이라이트 대상)이거나 루트 노드면 기본 펼침, 그 외 닫힘
+  // 앱 코드이거나 root이면 자동 펼침, 나머지는 닫힘
     final name = widget.node.name;
     _expanded = name == 'root' ||
         (widget.highlight.isNotEmpty && name.startsWith(widget.highlight));
@@ -288,11 +314,13 @@ class _CallTreeNodeState extends State<_CallTreeNode> {
 
   @override
   Widget build(BuildContext context) {
-    final pct = widget.totalSamples > 0
+    // 전체 샘플 대비 현재 노드 샘플 비율 계산 (퍼센트)
+  final pct = widget.totalSamples > 0
         ? widget.node.value / widget.totalSamples * 100 : 0.0;
     final hasChildren = widget.node.children.isNotEmpty;
 
-    final isHighlighted = widget.highlight.isNotEmpty &&
+    // 하이라이트 패키지 접두사와 노드 이름 비교하여 강조 여부 결정
+  final isHighlighted = widget.highlight.isNotEmpty &&
         widget.node.name.startsWith(widget.highlight);
     final nameColor = isHighlighted ? Colors.orangeAccent : Colors.white.withOpacity(0.54);
     final barColor = isHighlighted
@@ -380,6 +408,7 @@ class _CallTreeNodeState extends State<_CallTreeNode> {
     ]);
   }
 
+  // 전체 메서드명에서 "클래스.메서드" 형태의 짧은 이름 반환
   String _shortName(String name) {
     final parts = name.split('.');
     return parts.length >= 2 ? '${parts[parts.length - 2]}.${parts.last}' : name;

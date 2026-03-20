@@ -11,6 +11,7 @@ import 'method_list_tab.dart';
 import 'thread_tab.dart';
 import 'sql_tab.dart';
 import 'invocation_tab.dart';
+import 'api_test_tab.dart';
 import '../models/profiler_models.dart';
 
 class MainLayout extends StatefulWidget {
@@ -32,6 +33,7 @@ class _MainLayoutState extends State<MainLayout>
     Tab(icon: Icon(Icons.linear_scale), text: 'Threads'),
     Tab(icon: Icon(Icons.storage), text: 'SQL'),
     Tab(icon: Icon(Icons.timeline), text: 'Requests'),
+    Tab(icon: Icon(Icons.science), text: 'API Test'),
   ];
 
   @override
@@ -53,23 +55,15 @@ class _MainLayoutState extends State<MainLayout>
     return Scaffold(
       body: Row(
         children: [
-          // ── Sidebar (240px) ──────────────────────────────
           const SidebarWidget(),
           VerticalDivider(width: 1),
-
-          // ── Main Content ─────────────────────────────────
           Expanded(
             child: Column(
               children: [
-                // Header
                 const HeaderWidget(),
                 Divider(height: 1),
-
-                // Alert Banner
                 if (provider.alerts.isNotEmpty)
                   _AlertBanner(alerts: provider.alerts),
-
-                // Tab Bar
                 Container(
                   color: Theme.of(context).cardColor,
                   child: TabBar(
@@ -81,8 +75,6 @@ class _MainLayoutState extends State<MainLayout>
                     unselectedLabelColor: Colors.white.withOpacity(0.6),
                   ),
                 ),
-
-                // Tab Views
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
@@ -95,6 +87,7 @@ class _MainLayoutState extends State<MainLayout>
                       ThreadTab(),
                       SqlTab(),
                       InvocationTab(),
+                      ApiTestTab(),
                     ],
                   ),
                 ),
@@ -132,8 +125,7 @@ class _AlertBanner extends StatelessWidget {
                 style: TextStyle(color: color, fontSize: 13)),
           ),
           TextButton(
-            onPressed: () =>
-                context.read<ProfilerProvider>().clearAlerts(),
+            onPressed: () => context.read<ProfilerProvider>().clearAlerts(),
             child: Text('닫기', style: TextStyle(fontSize: 12)),
           ),
         ],

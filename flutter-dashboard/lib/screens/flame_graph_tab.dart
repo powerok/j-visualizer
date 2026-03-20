@@ -1,14 +1,20 @@
 // lib/screens/flame_graph_tab.dart
+// Flame Graph 탭: CPU 프로파일 데이터를 Canvas 기반 Flame Graph로 시각화
+
+// dart:convert: JSON 파싱
 import 'dart:convert';
+// dart:ui: 텍스트 렌더링(TextPainter) 등 저수준 UI 도구
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+// HTTP 요청 패키지 (히스토리 조회용)
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../providers/profiler_provider.dart';
 import '../models/profiler_models.dart';
+// 날짜 포맷팅 패키지
 import 'package:intl/intl.dart';
-
-class FlameGraphTab extends StatefulWidget {
+// Flame Graph 탭 위젯 (StatefulWidget: 선택 노드, 히스토리 선택 상태 관리)
+  class FlameGraphTab extends StatefulWidget {
   const FlameGraphTab({super.key});
 
   @override
@@ -16,10 +22,15 @@ class FlameGraphTab extends StatefulWidget {
 }
 
 class _FlameGraphTabState extends State<FlameGraphTab> {
+  // 현재 클릭하여 상세 패널에 표시 중인 노드
   FlameNode? _selectedNode;
+  // 백엔드에서 불러온 프로파일 히스토리 목록
   List<Map<String, dynamic>> _history = [];
+  // 선택된 프로파일 ID (null이면 실시간 LIVE 모드)
   String? _selectedProfileId; // null = 실시간
+  // 히스토리 프로파일의 루트 FlameNode 캐시
   FlameNode? _historicalRoot;
+  // 히스토리 로딩 중 여부 (로딩 인디케이터용)
   bool _loadingHistory = false;
 
   @override
@@ -28,6 +39,7 @@ class _FlameGraphTabState extends State<FlameGraphTab> {
     _loadHistory();
   }
 
+  // 백엔드 /api/profile/history에서 프로파일 목록 조회
   Future<void> _loadHistory() async {
     setState(() => _loadingHistory = true);
     try {
@@ -41,6 +53,7 @@ class _FlameGraphTabState extends State<FlameGraphTab> {
     setState(() => _loadingHistory = false);
   }
 
+  // 특정 히스토리 프로파일을 선택하고 FlameNode 트리로 파싱
   Future<void> _selectProfile(String id) async {
     try {
       final url = context.read<ProfilerProvider>().serverUrl;
@@ -67,12 +80,15 @@ class _FlameGraphTabState extends State<FlameGraphTab> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProfilerProvider>();
-    final liveRoot = provider.latestFlameNode;
-    final root = _selectedProfileId != null ? _historicalRoot : liveRoot;
+    // Provider에서 실시간 Flame Graph 루트 노드 조회
+  final liveRoot = provider.latestFlameNode;
+    // 히스토리 선택 여부에 따라 표시할 루트 노드 결정
+  final root = _selectedProfileId != null ? _historicalRoot : liveRoot;
 
     return Column(
       children: [
-        // ── 툴바 ──────────────────────────────────────────────
+        // 상단 툴바: LIVE/히스토리 선택 드롭다운 + 새로고침 + 샘플 수 표시
+  // ── 툴바 ──────────────────────────────────────────────
         Container(
           color: Theme.of(context).cardColor,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -157,7 +173,8 @@ class _FlameGraphTabState extends State<FlameGraphTab> {
           ]),
         ),
 
-        // ── Flame Graph Canvas ──────────────────────────────
+        // Flame Graph 캔버스 영역: InteractiveViewer로 확대/축소 지원
+  // ── Flame Graph Canvas ──────────────────────────────
         Expanded(
           child: root == null
               ? Center(
@@ -199,6 +216,7 @@ class _FlameGraphTabState extends State<FlameGraphTab> {
     );
   }
 
+  // 트리의 최대 깊이(레벨 수) 계산 헬퍼
   int _calcDepth(FlameNode node, [int depth = 0]) {
     if (node.children.isEmpty) return depth;
     return node.children
@@ -209,7 +227,8 @@ class _FlameGraphTabState extends State<FlameGraphTab> {
 
 // ── Flame Graph Canvas (기존과 동일) ───────────────────────────
 
-class FlameGraphCanvas extends StatefulWidget {
+// Flame Graph 캔버스 위젯: CustomPaint 기반 렌더링, 마우스 호버/클릭 처리
+  class FlameGraphCanvas extends StatefulWidget {
   final FlameNode root;
   final ValueChanged<FlameNode> onNodeTap;
 
@@ -220,7 +239,9 @@ class FlameGraphCanvas extends StatefulWidget {
 }
 
 class _FlameGraphCanvasState extends State<FlameGraphCanvas> {
+  // 마우스 호버 위치 (강조 효과 처리용)
   Offset? _hoverPos;
+  // 각 메서드 행의 높이 (픽셀)
   final double _rowHeight = 22;
 
   @override
@@ -252,6 +273,7 @@ class _FlameGraphCanvasState extends State<FlameGraphCanvas> {
     });
   }
 
+  // 트리 레이아웃 계산: 각 노드의 x/y/width/depth를 샘플 비율에 따라 설정
   void _layoutNode(FlameNode node, double x, double width, int depth) {
     node.x = x; node.y = depth * _rowHeight;
     node.width = width; node.depth = depth.toDouble();
@@ -264,11 +286,13 @@ class _FlameGraphCanvasState extends State<FlameGraphCanvas> {
     }
   }
 
+  // 트리의 최대 깊이 계산 (캔버스 총 높이 결정용)
   int _maxDepth(FlameNode node, [int d = 0]) {
     if (node.children.isEmpty) return d;
     return node.children.map((c) => _maxDepth(c, d + 1)).reduce((a, b) => a > b ? a : b);
   }
 
+  // 터치/클릭 위치에서 해당하는 FlameNode 탐색 (히트 테스트)
   FlameNode? _hitTest(FlameNode node, Offset pos) {
     if (pos.dx >= node.x && pos.dx <= node.x + node.width &&
         pos.dy >= node.y && pos.dy <= node.y + _rowHeight) return node;
@@ -280,11 +304,13 @@ class _FlameGraphCanvasState extends State<FlameGraphCanvas> {
   }
 }
 
-class _FlameGraphPainter extends CustomPainter {
+// Flame Graph 실제 렌더링을 담당하는 CustomPainter 클래스
+  class _FlameGraphPainter extends CustomPainter {
   final FlameNode root;
   final double rowHeight;
   final Offset? hoverPos;
 
+  // 메서드 이름의 해시값으로 색상을 선택하는 팔레트 (8가지 색상)
   static final List<Color> _palette = [
     const Color(0xFFE57373), const Color(0xFF81C784),
     const Color(0xFF64B5F6), const Color(0xFFFFB74D),
@@ -295,8 +321,10 @@ class _FlameGraphPainter extends CustomPainter {
   _FlameGraphPainter({required this.root, required this.rowHeight, this.hoverPos});
 
   @override
+  // 캔버스 전체 렌더링 진입점: 루트부터 재귀적으로 노드 그리기
   void paint(Canvas canvas, Size size) { _paintNode(canvas, root, size); }
 
+  // 개별 노드를 캔버스에 그리는 메서드: 배경 → 테두리 → 텍스트 순 렌더링
   void _paintNode(Canvas canvas, FlameNode node, Size size) {
     if (node.width < 2) return;
     final rect = Rect.fromLTWH(node.x + 1, node.y + 1, node.width - 2, rowHeight - 2);
@@ -328,11 +356,13 @@ class _FlameGraphPainter extends CustomPainter {
   }
 
   @override
+  // 리페인트 조건: 루트 노드나 호버 위치가 변경될 때만 다시 그림
   bool shouldRepaint(_FlameGraphPainter old) =>
       old.root != root || old.hoverPos != hoverPos;
 }
 
-class _NodeDetailPanel extends StatelessWidget {
+// 선택된 노드의 상세 정보를 표시하는 사이드 패널 위젯
+  class _NodeDetailPanel extends StatelessWidget {
   final FlameNode node, root;
   final VoidCallback onClose;
   const _NodeDetailPanel({required this.node, required this.root, required this.onClose});

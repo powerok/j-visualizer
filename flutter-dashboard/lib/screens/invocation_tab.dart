@@ -1,11 +1,16 @@
 // lib/screens/invocation_tab.dart
+// HTTP 요청 이력 탭: 요청 목록 + 메서드 호출 트리 상세 패널 (좌우 분할 레이아웃)
+
+// JSON 파싱 라이브러리
 import 'dart:convert';
 import 'package:flutter/material.dart';
+// HTTP 요청 패키지 (이력 조회/삭제용)
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+// 날짜 포맷팅 패키지
 import 'package:intl/intl.dart';
 import '../providers/profiler_provider.dart';
-
+// HTTP 요청 이력 탭 위젯 (StatefulWidget: 목록/선택 상태 관리)
 class InvocationTab extends StatefulWidget {
   const InvocationTab({super.key});
 
@@ -14,9 +19,12 @@ class InvocationTab extends StatefulWidget {
 }
 
 class _InvocationTabState extends State<InvocationTab> {
-  List<Map<String, dynamic>> _records = [];
-  Map<String, dynamic>? _selected;
-  bool _loading = false;
+  // 백엔드에서 조회한 HTTP 요청 이력 목록
+List<Map<String, dynamic>> _records = [];
+  // 현재 선택된 요청 이력 (null이면 상세 패널 숨김)
+Map<String, dynamic>? _selected;
+  // 데이터 로딩 중 여부
+bool _loading = false;
 
   @override
   void initState() {
@@ -24,7 +32,8 @@ class _InvocationTabState extends State<InvocationTab> {
     _load();
   }
 
-  Future<void> _load() async {
+  // 백엔드 /api/invocations에서 요청 이력 목록 조회
+Future<void> _load() async {
     setState(() => _loading = true);
     try {
       final url = context.read<ProfilerProvider>().serverUrl;
@@ -42,7 +51,8 @@ class _InvocationTabState extends State<InvocationTab> {
     }
   }
 
-  Future<void> _clear() async {
+  // 백엔드 /api/invocations DELETE 호출로 전체 이력 삭제
+Future<void> _clear() async {
     final url = context.read<ProfilerProvider>().serverUrl;
     await http.delete(Uri.parse('$url/api/invocations'));
     setState(() { _records = []; _selected = null; });
@@ -50,12 +60,14 @@ class _InvocationTabState extends State<InvocationTab> {
 
   @override
   Widget build(BuildContext context) {
-    // 실시간 업데이트 감지
+    // Provider 구독: WebSocket으로 새 요청 수신 시 화면 갱신
+// 실시간 업데이트 감지
     context.watch<ProfilerProvider>();
 
     return Row(
       children: [
-        // ── 왼쪽: 요청 목록 ──────────────────────────────────
+        // 왼쪽 영역: 고정 너비 360px의 요청 이력 목록
+// ── 왼쪽: 요청 목록 ──────────────────────────────────
         SizedBox(
           width: 360,
           child: Column(
@@ -117,7 +129,8 @@ class _InvocationTabState extends State<InvocationTab> {
 
         VerticalDivider(width: 1),
 
-        // ── 오른쪽: 호출 트리 상세 ────────────────────────────
+        // 오른쪽 영역: 선택된 요청의 호출 트리 상세 표시
+// ── 오른쪽: 호출 트리 상세 ────────────────────────────
         Expanded(
           child: _selected == null
               ? Center(
@@ -140,6 +153,7 @@ class _InvocationTabState extends State<InvocationTab> {
 
 // ── 목록 타일 ──────────────────────────────────────────────────
 
+// 요청 이력 목록의 개별 타일 위젯
 class _RecordTile extends StatelessWidget {
   final Map<String, dynamic> record;
   final bool isSelected;
@@ -153,7 +167,8 @@ class _RecordTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final elapsed = record['elapsedMs'] ?? record['elapsed_ms'] ?? 0;
+    // 처리 시간 (ms): camelCase 또는 snake_case 키 모두 지원
+final elapsed = record['elapsedMs'] ?? record['elapsed_ms'] ?? 0;
     final endpoint = record['endpoint'] ?? '';
     final status = record['httpStatus'] ?? record['http_status'] ?? 200;
     final ts = record['timestamp'];
@@ -165,7 +180,8 @@ class _RecordTile extends StatelessWidget {
       } catch (_) {}
     }
 
-    final color = elapsed > 500
+    // 처리 시간에 따라 색상 결정 (500ms 초과: 빨강, 100ms 초과: 주황, 그 외: 초록)
+final color = elapsed > 500
         ? Colors.redAccent
         : elapsed > 100
             ? Colors.orangeAccent
@@ -222,6 +238,7 @@ class _RecordTile extends StatelessWidget {
 
 // ── 호출 트리 상세 ──────────────────────────────────────────────
 
+// 선택된 HTTP 요청의 호출 트리 상세 위젯
 class _InvocationDetail extends StatelessWidget {
   final Map<String, dynamic> record;
   const _InvocationDetail({required this.record});
@@ -230,14 +247,17 @@ class _InvocationDetail extends StatelessWidget {
   Widget build(BuildContext context) {
     final endpoint = record['endpoint'] ?? '';
     final elapsed = record['elapsedMs'] ?? record['elapsed_ms'] ?? 0;
-    final treeJson = record['treeJson'] ?? record['tree_json'] ?? record['tree'];
+    // JSON 호출 트리 추출 (다양한 키 이름 지원)
+final treeJson = record['treeJson'] ?? record['tree_json'] ?? record['tree'];
     final treeText = record['treeText'] ?? record['tree_text'] ?? '';
 
-    Map<String, dynamic>? tree;
+    // 파싱된 호출 트리 맵 (파싱 실패 시 null → treeText 폴백)
+Map<String, dynamic>? tree;
     if (treeJson != null && treeJson.toString().isNotEmpty) {
       try {
         final decoded = jsonDecode(treeJson.toString());
-        // treeJson이 JSON 문자열로 한 번 더 인코딩된 경우 처리
+        // 이중 직렬화(JSON in JSON) 방어 처리
+// treeJson이 JSON 문자열로 한 번 더 인코딩된 경우 처리
         if (decoded is Map<String, dynamic>) {
           tree = decoded;
         } else if (decoded is String) {
@@ -329,6 +349,7 @@ class _InvocationDetail extends StatelessWidget {
 
 // ── treeText fallback 위젯 ────────────────────────────────────
 
+// treeText(텍스트 형태 호출 트리) 폴백 렌더링 위젯
 class _TextTree extends StatelessWidget {
   final String text;
   final int elapsed;
@@ -343,17 +364,20 @@ class _TextTree extends StatelessWidget {
       );
     }
 
-    final lines = text.split('\n').where((l) => l.trim().isNotEmpty).toList();
+    // 빈 줄 제거 후 줄 단위로 분리
+final lines = text.split('\n').where((l) => l.trim().isNotEmpty).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: lines.map((line) {
         // 들여쓰기 계산
-        int indent = 0;
+        // 들여쓰기 공백 수 계산 (트리 깊이 판단용)
+int indent = 0;
         for (int i = 0; i < line.length; i++) {
           if (line[i] == ' ') indent++;
           else break;
         }
-        final depth = indent ~/ 2;
+        // 공백 2개를 1 depth로 환산
+final depth = indent ~/ 2;
         final trimmed = line.trim();
 
         // ms 추출
@@ -435,6 +459,7 @@ class _TextTree extends StatelessWidget {
 
 const String _kHighlight = 'com.jvisualizer';
 
+// JSON 호출 트리의 개별 노드 위젯 (접힘/펼침 상태 관리)
 class _TreeNode extends StatefulWidget {
   final Map<String, dynamic> node;
   final int depth;
@@ -451,14 +476,19 @@ class _TreeNode extends StatefulWidget {
 }
 
 class _TreeNodeState extends State<_TreeNode> {
-  bool _expanded = true;
+  // 자식 노드 펼침 여부 (기본값: 펼침)
+bool _expanded = true;
 
   @override
   Widget build(BuildContext context) {
-    final name = widget.node['name']?.toString() ?? 'unknown';
-    final fullName = widget.node['full_name']?.toString() ?? name;
-    final dur = (widget.node['duration_ms'] as num?)?.toInt() ?? 0;
-    final children = (widget.node['children'] as List<dynamic>?) ?? [];
+    // 노드 표시 이름 (짧은 이름)
+final name = widget.node['name']?.toString() ?? 'unknown';
+    // 노드 전체 이름 (패키지 포함, 하이라이트 판단용)
+final fullName = widget.node['full_name']?.toString() ?? name;
+    // 해당 노드의 처리 시간 (ms)
+final dur = (widget.node['duration_ms'] as num?)?.toInt() ?? 0;
+    // 자식 노드 목록
+final children = (widget.node['children'] as List<dynamic>?) ?? [];
     final pct = widget.rootDuration > 0 ? dur / widget.rootDuration * 100 : 0.0;
 
     final isHighlighted = fullName.startsWith(_kHighlight) ||

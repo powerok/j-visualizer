@@ -11,11 +11,15 @@ class SidebarWidget extends StatefulWidget {
 }
 
 class _SidebarWidgetState extends State<SidebarWidget> {
+  // Backend (8080) URL 컨트롤러
   final _urlController = TextEditingController(text: 'http://localhost:8080');
+  // Example-App (8090) URL 컨트롤러 (API Test 탭에서 사용)
+  final _exampleUrlController = TextEditingController(text: 'http://localhost:8090');
 
   @override
   void dispose() {
     _urlController.dispose();
+    _exampleUrlController.dispose();
     super.dispose();
   }
 
@@ -30,7 +34,7 @@ class _SidebarWidgetState extends State<SidebarWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Logo
+          // ── 로고 ─────────────────────────────────────────────────
           Container(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -47,33 +51,29 @@ class _SidebarWidgetState extends State<SidebarWidget> {
           ),
           Divider(),
 
-          // 서버 URL
+          // ── Backend 서버 URL (WebSocket 연결용) ───────────────────
           Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Backend Server',
-                    style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.6))),
-                SizedBox(height: 6),
-                TextField(
-                  controller: _urlController,
-                  style: TextStyle(fontSize: 12, color: Colors.white),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 8),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6)),
-                    hintText: 'http://localhost:8080',
-                    hintStyle: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.38)),
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: Text('Backend Server',
+                style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.6))),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: TextField(
+              controller: _urlController,
+              style: TextStyle(fontSize: 12, color: Colors.white),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                hintText: 'http://localhost:8080',
+                hintStyle: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.38)),
+              ),
             ),
           ),
+          SizedBox(height: 8),
 
-          // 연결/해제 버튼
+          // ── 연결/해제 버튼 ────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: SizedBox(
@@ -90,17 +90,59 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                 label: Text(isConnected ? 'Disconnect' : 'Connect',
                     style: TextStyle(fontSize: 13)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      isConnected ? Colors.red.shade700 : Colors.blueAccent,
+                  backgroundColor: isConnected ? Colors.red.shade700 : Colors.blueAccent,
                   padding: const EdgeInsets.symmetric(vertical: 10),
                 ),
               ),
             ),
           ),
-          SizedBox(height: 16),
+          SizedBox(height: 12),
           Divider(),
 
-          // 연결 상태
+          // ── Example App URL (API Test 탭용) ──────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: Row(children: [
+              Icon(Icons.science, size: 12, color: Colors.orangeAccent.withOpacity(0.7)),
+              SizedBox(width: 4),
+              Text('Example App',
+                  style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.6))),
+            ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: TextField(
+              controller: _exampleUrlController,
+              style: TextStyle(fontSize: 12, color: Colors.white),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: Colors.orangeAccent.withOpacity(0.3)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: Colors.orangeAccent.withOpacity(0.2)),
+                ),
+                hintText: 'http://localhost:8090',
+                hintStyle: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.38)),
+              ),
+              // 변경 시 Provider에 저장
+              onChanged: (val) => provider.setExampleAppUrl(val.trim()),
+            ),
+          ),
+          SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text('API Test 탭에서 사용',
+                style: TextStyle(fontSize: 10, color: Colors.orangeAccent.withOpacity(0.5))),
+          ),
+
+          SizedBox(height: 12),
+          Divider(),
+
+          // ── 연결 상태 ─────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.all(12),
             child: _StatusTile(
@@ -117,7 +159,6 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                 style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.38),
                     letterSpacing: 1.2)),
           ),
-          // 모드 선택
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Column(

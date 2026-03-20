@@ -8,7 +8,6 @@ import '../services/websocket_service.dart';
 class ProfilerProvider extends ChangeNotifier {
   final WebSocketService _ws = WebSocketService();
 
-  // 메트릭 히스토리 (최근 60개 = 1분치)
   final Queue<JvmMetrics> _metricsHistory = Queue();
   static const int _maxHistory = 60;
 
@@ -22,7 +21,17 @@ class ProfilerProvider extends ChangeNotifier {
   String _serverUrl = 'http://localhost:8080';
   String _connectionStatus = '연결 안됨';
 
-  // 구독 목록
+  // ── Example App URL (API Test 탭에서 사용) ──────────────────────
+  String _exampleAppUrl = 'http://localhost:8090';
+  String get exampleAppUrl => _exampleAppUrl;
+
+  void setExampleAppUrl(String url) {
+    if (url.isNotEmpty) {
+      _exampleAppUrl = url;
+      notifyListeners();
+    }
+  }
+
   final List<StreamSubscription> _subs = [];
 
   ProfilerProvider() {
@@ -34,7 +43,6 @@ class ProfilerProvider extends ChangeNotifier {
     _subs.add(_ws.alertStream.listen(_onAlert));
   }
 
-  // ── Getters ──────────────────────────────────────────────
   bool get isConnected => _isConnected;
   String get serverUrl => _serverUrl;
   String get connectionStatus => _connectionStatus;
@@ -45,13 +53,11 @@ class ProfilerProvider extends ChangeNotifier {
   List<ProfilerAlert> get alerts => List.unmodifiable(_alerts);
   List<JvmMetrics> get metricsHistory => List.unmodifiable(_metricsHistory);
 
-  // 차트용 데이터 포인트
   List<double> get heapHistory =>
       _metricsHistory.map((m) => m.heapUsedPercent).toList();
   List<double> get threadCountHistory =>
       _metricsHistory.map((m) => m.threadCount.toDouble()).toList();
 
-  // ── Actions ──────────────────────────────────────────────
   Future<void> connect(String url) async {
     _serverUrl = url;
     _connectionStatus = '연결 중...';
@@ -68,14 +74,13 @@ class ProfilerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Handlers ─────────────────────────────────────────────
   void _onStateChange(ConnectionState state) {
     _isConnected = state == ConnectionState.connected;
     _connectionStatus = switch (state) {
-      ConnectionState.connected => '연결됨',
-      ConnectionState.connecting => '연결 중...',
+      ConnectionState.connected    => '연결됨',
+      ConnectionState.connecting   => '연결 중...',
       ConnectionState.disconnected => '연결 안됨',
-      ConnectionState.error => '연결 오류',
+      ConnectionState.error        => '연결 오류',
     };
     notifyListeners();
   }
